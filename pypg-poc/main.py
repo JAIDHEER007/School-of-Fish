@@ -34,8 +34,8 @@ def main():
             if event.type == pygame.QUIT:                # clicked the window's X
                 running = False
 
-        for s in sliders:
-            s.handle_event(event)
+            for s in sliders:
+                s.handle_event(event)
         
         # 2. Draw: clear the whole frame first, then draw everything on top.
         screen.fill(settings.BG_COLOR)                        # dark ocean blue (R, G, B)
