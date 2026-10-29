@@ -45,11 +45,12 @@ def run_benchmark(sizes, steps, runs, csv_path):
     rows = []
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["fishcount", "ms/step"])
+        # runs and steps are saved per row so the CSV documents how each number was measured.
+        writer.writerow(["fishcount", "ms/step", "runs", "steps"])
         for n in sizes:
             avg = bench_avg(n, steps, runs)
-            print(f"n = {n:5d}   {avg:8.2f} ms/step   (avg of {runs} runs)")
-            writer.writerow([n, f"{avg:.4f}"])
+            print(f"n = {n:5d}   {avg:8.2f} ms/step   (avg of {runs} runs x {steps} steps)")
+            writer.writerow([n, f"{avg:.4f}", runs, steps])
             f.flush()                          # keep partial results if you Ctrl+C
             rows.append((n, avg))
     print(f"Results saved to {csv_path}")
@@ -61,7 +62,9 @@ def load_results(csv_path):
     with open(csv_path, newline="") as f:
         reader = csv.reader(f)
         next(reader)                           # skip the header row
-        return [(int(n), float(ms)) for n, ms in reader]
+        # Only the first two columns are needed for plotting; this also reads
+        # older CSVs that were written before the runs/steps columns existed.
+        return [(int(row[0]), float(row[1])) for row in reader]
 
 
 # ---------------------------------------------------------------------------
