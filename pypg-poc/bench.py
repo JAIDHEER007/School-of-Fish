@@ -12,7 +12,7 @@ from matplotlib.ticker import FuncFormatter, NullLocator
 import settings
 from flock import Flock
 
-DEFAULT_SIZES = [100, 200, 400]
+DEFAULT_SIZES = [25, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800]
 DEFAULT_OUT_DIR = Path(__file__).parent / "benchmark"   # next to this script, from any cwd
 CSV_NAME = "bench_results.csv"
 FRAME_BUDGET_MS = 1000.0 / 60.0                # one frame at 60 FPS
