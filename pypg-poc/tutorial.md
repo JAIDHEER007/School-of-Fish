@@ -17,6 +17,22 @@ is the point: you will *feel* why the later phases exist.
 
 ---
 
+## The result
+
+This is the finished POC running with `python main.py` and the default slider weights
+(Separation 1.50, Alignment 1.00, Cohesion 1.00):
+
+![The finished PyGame POC: hundreds of yellow triangle fish on a dark green background form schools that swim, merge and split, with the FPS counter (about 62 FPS, 16 ms per frame) in the top-left and the Separation, Alignment and Cohesion sliders in the top-right](POC.gif)
+
+The window opens on a terminal running `python main.py`. Within seconds the fish, which start
+at random positions and headings, group into schools whose members point the same way. The
+schools drift across the screen, wrap around the edges, and merge into larger groups or
+break apart when they meet. The HUD in the top-left shows the frame rate holding at about
+60 FPS (16 ms per frame), and the three sliders in the top-right sit at their defaults. The
+rest of this tutorial builds this, one step at a time.
+
+---
+
 ## Table of contents
 
 0. [What we are building](#step-0--what-we-are-building)
@@ -61,6 +77,7 @@ Add a little random **wander** so it doesn't look mechanical, and schooling *eme
 ```
 pypg-poc/
 ├── tutorial.md        ← this file
+├── POC.gif            ← screen recording of the finished POC (see "The result")
 ├── requirements.txt   ← pinned Python dependencies (pygame-ce, matplotlib)
 ├── .gitignore         ← ignores .venv/ and __pycache__/
 ├── settings.py        ← every constant in one place
