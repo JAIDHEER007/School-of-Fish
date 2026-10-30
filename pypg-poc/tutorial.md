@@ -1016,7 +1016,7 @@ from matplotlib.ticker import FuncFormatter, NullLocator
 import settings
 from flock import Flock
 
-DEFAULT_SIZES = [100, 200, 400, 800, 1000, 2000, 4000, 8000]
+DEFAULT_SIZES = [25, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800]   # each one doubles
 DEFAULT_OUT_DIR = Path(__file__).parent / "benchmark"   # next to this script, from any cwd
 CSV_NAME = "bench_results.csv"
 FRAME_BUDGET_MS = 1000.0 / 60.0                # one frame at 60 FPS
@@ -1081,7 +1081,7 @@ def load_results(csv_path):
 ```
 
 The CSV records *how* each number was measured, not just the result. A row such as
-`8000,4893.5540,5,20` says "average of 5 runs of 20 timed steps". Without the last two
+`12800,22673.9779,10,250` says "average of 10 runs of 250 timed steps". Without the last two
 columns, a later reader can't tell whether a number came from 3 steps or 3000.
 
 **Layer 4: analyze.** Two numbers summarize the whole benchmark.
@@ -1209,7 +1209,7 @@ def plot_complexity(ns, ms, slope, path):
 ```
 
 Why anchor the reference lines at the *largest* n? At small n the per-fish `b·n` term
-still bends the curve. At n = 8000 it's 0.3% of the total, so that point is the purest
+still bends the curve. At n = 12800 it's 0.4% of the total, so that point is the purest
 sample of the n² behavior.
 
 A small function ties the analysis and plots together:
@@ -1277,81 +1277,104 @@ python bench.py --sizes 100 200 400      # a quick check
 python bench.py --plot-only              # redraw graphs from benchmark/bench_results.csv
 ```
 
-> **Be patient with the large sizes.** At n = 8000 one step takes about 5 s, so
-> 5 runs × 21 steps is roughly 9 minutes for that row alone. The `f.flush()` line means
-> you can Ctrl+C and still keep the rows that finished; then run `--plot-only` to graph them.
+> **Be patient with the large sizes.** At n = 12800 one step takes about 23 s, so even the
+> defaults (5 runs × 21 steps) need ~40 minutes for that row alone. The results below were
+> taken with `python bench.py --steps 250 --runs 10`, which took roughly 21 hours in total
+> (~16 h of it for n = 12800). The `f.flush()` line means you can Ctrl+C and still keep the
+> rows that finished; then run `--plot-only` to graph them.
 
 ### 15.3 Reading the results
 
 These are the measurements in `benchmark/bench_results.csv`. They were taken on the development
-machine (Intel Core i7-1360P, Python 3.14, `pygame-ce` 2.5.8) with the fused
-loop from Step 12 and `PERCEPTION_RADIUS = 65`:
+machine (Intel Core i7-8700T, 6 cores / 12 threads, 2.4 GHz base / 4.0 GHz turbo,
+Ubuntu, Python 3.14.4, `pygame-ce` 2.5.8) with the fused loop from Step 12 and
+`PERCEPTION_RADIUS = 65`. Every row is the average of **10 runs × 250 timed steps**
+(`python bench.py --steps 250 --runs 10`). The simulation is single-threaded, so only one
+of those cores is busy:
 
-| n (fish) | ms/step  | ratio to previous row | expected ratio (n₂/n₁)² | ns per fish pair |
-|---------:|---------:|----------------------:|------------------------:|-----------------:|
-|      100 |     0.92 | —                     | —                       | 92.8             |
-|      200 |     3.34 | 3.63                  | 4.00                    | 83.9             |
-|      400 |    12.89 | 3.86                  | 4.00                    | 80.7             |
-|      800 |    50.76 | 3.94                  | 4.00                    | 79.4             |
-|     1000 |    78.26 | 1.54                  | 1.56                    | 78.3             |
-|     2000 |   307.84 | 3.93                  | 4.00                    | 77.0             |
-|     4000 | 1 228.16 | 3.99                  | 4.00                    | 76.8             |
-|     8000 | 4 893.55 | 3.98                  | 4.00                    | 76.5             |
+| n (fish) | ms/step   | ratio to previous row | expected ratio (n₂/n₁)² | ns per fish pair |
+|---------:|----------:|----------------------:|------------------------:|-----------------:|
+|       25 |      0.16 | —                     | —                       | 260.8            |
+|       50 |      0.50 | 3.20                  | 4.00                    | 204.3            |
+|      100 |      1.73 | 3.46                  | 4.00                    | 174.9            |
+|      200 |      6.41 | 3.70                  | 4.00                    | 161.0            |
+|      400 |     24.54 | 3.83                  | 4.00                    | 153.8            |
+|      800 |     91.39 | 3.72                  | 4.00                    | 143.0            |
+|     1600 |    361.88 | 3.96                  | 4.00                    | 141.4            |
+|     3200 |  1 429.16 | 3.95                  | 4.00                    | 139.6            |
+|     6400 |  5 693.15 | 3.98                  | 4.00                    | 139.0            |
+|    12800 | 22 673.98 | 3.98                  | 4.00                    | 138.4            |
 
 "ns per fish pair" is `ms/step ÷ (n · (n − 1))`, which is the time for one trip through the
-inner loop.
+inner loop. It falls from 261 ns at n = 25 and levels off at ~138 ns once the pairs
+dominate.
 
 #### The graphs
 
-**n vs ms/step.** On linear axes the points trace a parabola. Up to 1000 fish they hug the
-floor, then the cost explodes: 2× the fish (4000 → 8000) means 4× the time (1.2 s → 4.9 s).
-The orange fitted curve passes through every point.
+**n vs ms/step** (`benchmark/ms_vs_n.png`). Linear axes, with the blue dots as the
+measurements and the orange line as the least-squares fit `138 ns·n² + 6.5 µs·n`. The
+points trace a parabola: everything up to 800 fish is squashed against the floor (under
+0.1 s), then the cost explodes. The last three points show the n² pattern directly: 3200 →
+6400 → 12800 fish costs 1.4 s → 5.7 s → 22.7 s per step (annotated at the top right). The
+orange curve runs through every dot.
 
-![Time per step vs. fish count: the measured points follow the fitted parabola 76 ns·n² + 2.0 µs·n, rising to 4.9 s per step at 8000 fish](benchmark/ms_vs_n.png)
+![Time per step vs. fish count on linear axes: measured points for 25 to 12800 fish follow the fitted parabola 138 ns·n² + 6.5 µs·n, flat near zero up to 800 fish and rising to 22.7 s per step at 12800 fish](benchmark/ms_vs_n.png)
 
-**Time complexity (log-log).** Here a power law `c·nᵏ` turns into a straight line of slope
-k. The measured line (slope **1.96**) runs parallel to the dashed O(n²) reference and
-clearly steeper than the dotted O(n) one. It crosses the 60 FPS budget between 400 and
-800 fish. The slight lift at n = 100, above the dashed line, is the per-fish `b·n` work.
+**Time complexity, log-log** (`benchmark/complexity_loglog.png`). Both axes are logarithmic,
+so a power law `c·nᵏ` turns into a straight line of slope k. The x-axis ticks are the ten
+measured sizes, evenly spaced because each one doubles the previous. The two gray reference
+lines both pass through the n = 12800 point: dashed for O(n²) (slope 2) and dotted for O(n)
+(slope 1). The blue measured line (overall slope **1.92**) sits right on the dashed O(n²)
+line from about 400 fish upward and is clearly steeper than the dotted O(n) one. Below 400
+it floats *above* the dashed line, and the gap widens toward n = 25: that is the per-fish
+`b·n` work, which matters more the fewer pairs there are. The thin horizontal line is the
+60 FPS budget (16.7 ms per step). The measured line crosses it between 200 and 400 fish.
 
-![Log-log plot of ms per step vs. fish count: measured line with slope 1.96 runs parallel to the O(n²) reference and crosses the 16.7 ms budget near 450 fish](benchmark/complexity_loglog.png)
+![Log-log plot of ms per step vs. fish count from 25 to 12800: the measured line, slope 1.92, lies on the dashed O(n²) reference from 400 fish up, sits above it at small n, and crosses the 16.7 ms 60 FPS budget between 200 and 400 fish](benchmark/complexity_loglog.png)
 
 #### What the numbers say
 
-1. **It really is O(n²).** Doubling the fish count costs 3.9–4.0× from n = 400 upward.
-   The 800 → 1000 row isn't a doubling, but it matches its own prediction too
-   (1.25² = 1.56, measured 1.54). On a log-log plot the points lie on a line with slope
-   **1.96** (a slope of 2 means n²).
+1. **It really is O(n²).** From n = 1600 upward, every doubling of the fish count costs
+   3.95–3.98×, almost exactly the predicted 4×. The 400 → 800 step comes in a little low
+   (3.72) but the rows on either side are back on track, so treat it as measurement noise.
+   On the log-log plot the large-n points lie on the O(n²) reference line.
 
-2. **Why the small sizes come in under 4×.** Each step also does work that grows only
-   linearly with n: the three `steer_towards` calls, `wander`, and `update` run once per fish,
-   not once per pair. A least-squares fit of the data gives
+2. **Why the small sizes come in under 4×, and why the slope is 1.92 and not 2.** Each step
+   also does work that grows only linearly with n: the three `steer_towards` calls,
+   `wander`, and `update` run once per fish, not once per pair. A least-squares fit of the
+   data gives
 
    ```
-   ms/step ≈ 76 ns · n²  +  2.0 µs · n
+   ms/step ≈ 138 ns · n²  +  6.5 µs · n
    ```
 
-   At n = 100 the linear part is ~20% of the total, so the ratio is diluted. At n = 8000 it
-   is ~0.3%, and the n² term is all that's left. That's the general lesson of Big-O: it
-   describes the large-n behavior, while small inputs are dominated by the other terms.
+   At n = 25 the linear part is about two thirds of the total, at n = 100 about a third, so
+   the doubling ratio is diluted (3.20 for 25 → 50). At n = 12800 it is ~0.4%, and the n²
+   term is all that's left. Because this run starts at only 25 fish, those diluted small
+   sizes pull the single best-fit line through *all* points down to slope 1.92. That's the
+   general lesson of Big-O: it describes the large-n behavior, while small inputs are
+   dominated by the other terms.
 
-3. **One inner-loop iteration costs ~77 ns.** That is a few hundred CPU cycles to subtract two
-   vectors, compare a distance and add three vectors. Almost all of it is CPython overhead:
-   each `Vector2` operation creates a new Python object, and every attribute access
-   (`other.pos`) is a dictionary lookup. Keep this number; it's the baseline the C++
-   versions will beat.
+3. **One inner-loop iteration costs ~138 ns.** At up to 4 GHz that is roughly 500 CPU cycles
+   to subtract two vectors, compare a distance and add three vectors. Almost all of it is
+   CPython overhead: each `Vector2` operation creates a new Python object, and every
+   attribute access (`other.pos`) is a dictionary lookup. Keep this number; it's the
+   baseline the C++ versions will beat.
 
-4. **The real-time limit is about 450 fish.** At 60 Hz one step must fit in 16.7 ms.
-   Solving the fit for 16.7 ms gives n ≈ **455**. That's why `NUM_FISH = 400` (12.9 ms/step)
-   still runs smoothly and 800 fish (50.8 ms/step) falls to slow motion, with the
-   `MAX_STEPS_PER_FRAME` guard from Step 8 kicking in.
+4. **The real-time limit is about 325 fish.** At 60 Hz one step must fit in 16.7 ms.
+   Solving the fit for 16.7 ms gives n ≈ **325**. On this machine the default
+   `NUM_FISH = 400` (24.5 ms/step) is already over budget: the simulation can do at most
+   16.7 / 24.5 ≈ 0.7 s of simulated time per real second, so the fish swim in mild slow
+   motion and the `MAX_STEPS_PER_FRAME` guard from Step 8 keeps resetting the accumulator.
+   At 800 fish (91.4 ms/step) it drops to under 0.2× real time. Lower `NUM_FISH` to ~300 if
+   you want full-speed motion here.
 
 5. **Extrapolating shows why the later phases exist.** With the same formula:
 
-   | n       | predicted time per step | 
+   | n       | predicted time per step |
    |--------:|------------------------:|
-   | 10 000  | ~7.6 s                  |
-   | 100 000 | ~13 minutes             |
+   | 10 000  | ~14 s                   |
+   | 100 000 | ~23 minutes             |
 
    The C++ roadmap attacks this from two directions. **Making each pair cheaper**: compiled
    C++, SoA memory, then OpenMP threads and CUDA's thousands of GPU threads. **Making far fewer
@@ -1360,6 +1383,9 @@ clearly steeper than the dotted O(n) one. It crosses the 60 FPS budget between 4
 #### Compare with your own run
 
 Your machine will give different absolute numbers, but the *ratios* should look the same.
+For example, an earlier run of the same code on a laptop with an Intel Core i7-1360P
+(sizes 100 to 8000, 5 runs × 20 steps) measured ~77 ns per pair instead of ~138 ns, a
+limit of ~455 fish instead of ~325, and still a doubling ratio of 3.98 at the largest size.
 If your ratios are far from 4 at large n, something else is competing for the CPU (close
 the browser, plug in the laptop) or `--steps` is too small to average out the noise.
 
@@ -1389,7 +1415,7 @@ schools, large radii give one big school (and more neighbors per fish to process
 | All fish collapse to a single point         | Separation sign flipped: use `f.pos - other.pos`, not the reverse  |
 | Flock drifts consistently in one direction  | Updating positions inside pass 1 (see "Why two passes?")           |
 | Fish jitter violently                        | `MAX_FORCE` too high for the weights, or `dt` given in ms not s    |
-| Everything moves in slow motion             | Simulation too slow for real time (check `sim ms/step` vs 16.7; the limit is ~450 fish, see Step 15.3) |
+| Everything moves in slow motion             | Simulation too slow for real time (check `sim ms/step` vs 16.7; the limit is ~325 fish on the i7-8700T, see Step 15.3) |
 | Fish freeze while the window is dragged     | Normal; the OS pauses the loop. The `0.25` s cap avoids a jump after |
 | Different behavior every run                | Using global `random` instead of the seeded `self.rng`             |
 
